@@ -1,25 +1,100 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+Reproducible Research Course Project 1
+--------------------------------------
+Scott Berta  
+January 7, 2019  
 
+##Introduction
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the “quantified self” movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
 
-## Loading and preprocessing the data
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
 
+##Step 1: Loading and pre-processing of data
+```{r}
+library(ggplot2)
+unzip("activity.zip")
+activity<-read.csv("activity.csv")
+```
+Add additional field *day* to display if the day of the week is a weekend or weekday
+```{r}
+activity$day<-sapply(activity$date, function(x) {
+        if(weekdays(as.Date(x)) == "Saturday" | weekdays(as.Date(x)) == "Sunday")
+        {y <- "Weekend"} else
+        {y <- "Weekday"}
+})
 
+summary(activity)
+```
 
-## What is mean total number of steps taken per day?
+##Step 2: What is the total number of steps taken each day?
+Sum steps by day using aggregate function and plot results in a histogram.
 
+```{r}
+totalSteps<-aggregate(steps ~ date, activity, sum)
+hist(totalSteps$steps, 
+     main="Total Number of Steps Taken per Day", 
+     xlab="Number of Steps",
+     col="red")
+```
 
+##Step 3: What are the mean and median number of steps taken each day?
+```{r}
+meanSteps<-mean(totalSteps$steps)
+meanSteps
+```
+```{r}
+medianSteps<-median(totalSteps$steps)
+medianSteps
+```
 
-## What is the average daily activity pattern?
+##Step 4: Display a time series plot of the average number of steps taken.
+```{r}
+averageSteps<-aggregate(steps ~ interval, activity, mean)
+plot(averageSteps$steps~averageSteps$interval, 
+     ylab="Average Number of Steps",
+     xlab="Interval",
+     type="l")
+```
 
+##Step 5: What is the 5-minute interval that, on average, contains the maximum number of steps?
+Find the interval where the average number of steps is highest.
+```{r}
+maxSteps<-averageSteps[which.max(averageSteps$steps),]
+maxSteps$interval
+```
 
+##Step 6: Code to describe a strategy for imputing missing data.
+One of the easiest ways to impute missing values is to fill them in such a way that statistical measures of the data, such as  mean and variance do not change. In this instance, imputing missing data by using the average number of steps for the interval should suffice.  
+First the number of missing values is determined:  
+```{r}
+countNA<-sum(is.na(activity$steps))
+countNA
+```
+Next a new dataframe is created and the missing value is imputed with the average number of steps for the interval where the missing value is found:
+```{r}
+imputeSteps<-transform(activity, steps = ifelse(is.na(activity$steps), averageSteps$steps, activity$steps))
+```
+To confirm this is successful, we check again for the number of missing values:
+```{r}
+countNA2<-sum(is.na(imputeSteps$steps))
+countNA2
+```
 
-## Imputing missing values
+##Step 7: What are the total number of steps taken each day now that the missing values have been imputed?
+```{r}
+totalSteps_imputed<-aggregate(steps ~ date, imputeSteps, sum)
+hist(totalSteps_imputed$steps, 
+     main="Total Number of Steps Taken per Day", 
+     xlab="Number of Steps",
+     col="blue")
+```
 
+##Step 8: Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends.  
+Use ggplot to display a plot of average steps per time interval for each day type, Weekend and Weekday, as determined by the *day* field created in Step 1. 
+```{r}
+steps_by_day<-aggregate(steps~interval + day, activity, mean, na.rm = TRUE)
+ggplot(steps_by_day, aes(x = interval, y = steps, color = day)) +
+        geom_line() +
+        labs(title = "Average daily steps by weekday/weekend", x = "Interval", y = "Average # of Steps") +
+        facet_wrap(~day, ncol = 1, nrow = 2)
+```
 
-
-## Are there differences in activity patterns between weekdays and weekends?
